@@ -1,0 +1,816 @@
+diff --git a/Source/WebCore/inspector/front-end/Checkbox.js b/Source/WebCore/inspector/front-end/Checkbox.js
+index aed8534..c22bf88 100644
+--- a/Source/WebCore/inspector/front-end/Checkbox.js
++++ b/Source/WebCore/inspector/front-end/Checkbox.js
+@@ -23,6 +23,9 @@
+  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
++/**
++ * @constructor
++ */
+ WebInspector.Checkbox = function(label, className, tooltip)
+ {
+     this.element = document.createElement('label');
+diff --git a/Source/WebCore/inspector/front-end/ContextMenu.js b/Source/WebCore/inspector/front-end/ContextMenu.js
+index 58810fb..486ea5b 100644
+--- a/Source/WebCore/inspector/front-end/ContextMenu.js
++++ b/Source/WebCore/inspector/front-end/ContextMenu.js
+@@ -28,6 +28,9 @@
+  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
++/**
++ * @constructor
++ */
+ WebInspector.ContextMenu = function() {
+     this._items = [];
+     this._handlers = {};
+diff --git a/Source/WebCore/inspector/front-end/DOMAgent.js b/Source/WebCore/inspector/front-end/DOMAgent.js
+index 7300371..5a17e80 100644
+--- a/Source/WebCore/inspector/front-end/DOMAgent.js
++++ b/Source/WebCore/inspector/front-end/DOMAgent.js
+@@ -29,6 +29,9 @@
+  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
++/**
++ * @constructor
++ */
+ WebInspector.DOMNode = function(doc, payload) {
+     this.ownerDocument = doc;
+ 
+@@ -216,7 +219,7 @@ WebInspector.DOMNode.prototype = {
+ 
+     appropriateSelectorFor: function(justSelector)
+     {
+-        var lowerCaseName = this.localName() || node.nodeName().toLowerCase();
++        var lowerCaseName = this.localName() || this.nodeName().toLowerCase();
+ 
+         var id = this.getAttribute("id");
+         if (id) {
+@@ -323,6 +326,10 @@ WebInspector.DOMNode.prototype = {
+     }
+ }
+ 
++/**
++ * @extends {WebInspector.DOMNode}
++ * @constructor
++ */
+ WebInspector.DOMDocument = function(domAgent, payload)
+ {
+     WebInspector.DOMNode.call(this, this, payload);
+@@ -332,6 +339,10 @@ WebInspector.DOMDocument = function(domAgent, payload)
+ 
+ WebInspector.DOMDocument.prototype.__proto__ = WebInspector.DOMNode.prototype;
+ 
++/**
++ * @extends {WebInspector.Object}
++ * @constructor
++ */
+ WebInspector.DOMAgent = function() {
+     this._idToDOMNode = null;
+     this._document = null;
+@@ -345,7 +356,8 @@ WebInspector.DOMAgent.Events = {
+     NodeInserted: "NodeInserted",
+     NodeRemoved: "NodeRemoved",
+     DocumentUpdated: "DocumentUpdated",
+-    ChildNodeCountUpdated: "ChildNodeCountUpdated"
++    ChildNodeCountUpdated: "ChildNodeCountUpdated",
++    InspectElementRequested: "InspectElementRequested"
+ }
+ 
+ WebInspector.DOMAgent.prototype = {
+@@ -460,7 +472,7 @@ WebInspector.DOMAgent.prototype = {
+         delete this._loadNodeAttributesTimeout;
+ 
+         for (var nodeId in this._attributeLoadNodeIds)
+-            DOMAgent.getAttributes(parseInt(nodeId), this._wrapClientCallback(callback.bind(this, nodeId)));
++            DOMAgent.getAttributes(Number(nodeId), this._wrapClientCallback(callback.bind(this, nodeId)));
+         this._attributeLoadNodeIds = {};
+     },
+ 
+@@ -482,6 +494,9 @@ WebInspector.DOMAgent.prototype = {
+         this.requestDocument();
+     },
+ 
++    /**
++     * @param {*} payload
++     */
+     _setDocument: function(payload)
+     {
+         this._idToDOMNode = {};
+@@ -495,6 +510,9 @@ WebInspector.DOMAgent.prototype = {
+         this.dispatchEventToListeners(WebInspector.DOMAgent.Events.DocumentUpdated, this._document);
+     },
+ 
++    /**
++     * @param {*} payload
++     */
+     _setDetachedRoot: function(payload)
+     {
+         var root = new WebInspector.DOMNode(this._document, payload);
+@@ -546,20 +564,25 @@ WebInspector.DOMAgent.prototype = {
+         parent._removeChild(node);
+         this.dispatchEventToListeners(WebInspector.DOMAgent.Events.NodeRemoved, {node:node, parent:parent});
+         delete this._idToDOMNode[nodeId];
+-        if (Preferences.nativeInstrumentationEnabled)
+-            WebInspector.panels.elements.sidebarPanes.domBreakpoints.nodeRemoved(node);
++    },
++
++    _inspectElementRequested: function(nodeId)
++    {
++        var node = this._idToDOMNode[nodeId];
++        if (node)
++            this.dispatchEventToListeners(WebInspector.DOMAgent.Events.InspectElementRequested, node);
+     },
+ 
+     performSearch: function(query, searchResultCollector, searchSynchronously)
+     {
+         this._searchResultCollector = searchResultCollector;
+-        DOMAgent.performSearch(query, !!searchSynchronously);
++        DOMAgent.performSearch(query, !!searchSynchronously, undefined);
+     },
+ 
+     cancelSearch: function()
+     {
+         delete this._searchResultCollector;
+-        DOMAgent.cancelSearch();
++        DOMAgent.cancelSearch(undefined);
+     },
+ 
+     querySelector: function(nodeId, selectors, callback)
+@@ -575,6 +598,9 @@ WebInspector.DOMAgent.prototype = {
+ 
+ WebInspector.DOMAgent.prototype.__proto__ = WebInspector.Object.prototype;
+ 
++/**
++ * @constructor
++ */
+ WebInspector.DOMDispatcher = function(domAgent)
+ {
+     this._domAgent = domAgent;
+@@ -623,7 +649,7 @@ WebInspector.DOMDispatcher.prototype = {
+ 
+     inspectElementRequested: function(nodeId)
+     {
+-        WebInspector.updateFocusedNode(nodeId);
++        this._domAgent._inspectElementRequested(nodeId);
+     },
+ 
+     searchResults: function(nodeIds)
+diff --git a/Source/WebCore/inspector/front-end/DOMBreakpointsSidebarPane.js b/Source/WebCore/inspector/front-end/DOMBreakpointsSidebarPane.js
+index 450937b..de123e9 100644
+--- a/Source/WebCore/inspector/front-end/DOMBreakpointsSidebarPane.js
++++ b/Source/WebCore/inspector/front-end/DOMBreakpointsSidebarPane.js
+@@ -50,6 +50,8 @@ WebInspector.DOMBreakpointsSidebarPane = function()
+     this._contextMenuLabels[this._breakpointTypes.NodeRemoved] = WebInspector.UIString(WebInspector.useLowerCaseMenuTitles() ? "Break on node removal" : "Break on Node Removal");
+ 
+     WebInspector.resourceTreeModel.addEventListener(WebInspector.ResourceTreeModel.EventTypes.InspectedURLChanged, this._inspectedURLChanged, this);
++    if (Preferences.nativeInstrumentationEnabled)
++        WebInspector.domAgent.addEventListener(WebInspector.DOMAgent.Events.NodeRemoved, this._nodeRemoved, this);
+ }
+ 
+ WebInspector.DOMBreakpointsSidebarPane.prototype = {
+@@ -142,7 +144,7 @@ WebInspector.DOMBreakpointsSidebarPane.prototype = {
+         callback(element);
+     },
+ 
+-    nodeRemoved: function(node)
++    _nodeRemoved: function(node)
+     {
+         this._removeBreakpointsForNode(node);
+         if (!node.children)
+diff --git a/Source/WebCore/inspector/front-end/DebuggerModel.js b/Source/WebCore/inspector/front-end/DebuggerModel.js
+index 7a52b91..017e9f0 100644
+--- a/Source/WebCore/inspector/front-end/DebuggerModel.js
++++ b/Source/WebCore/inspector/front-end/DebuggerModel.js
+@@ -28,6 +28,9 @@
+  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
++/**
++ * @constructor
++ */
+ WebInspector.DebuggerModel = function()
+ {
+     this._debuggerPausedDetails = {};
+@@ -203,6 +206,9 @@ WebInspector.DebuggerEventTypes = {
+     NativeBreakpoint: 2
+ };
+ 
++/**
++ * @constructor
++ */
+ WebInspector.DebuggerDispatcher = function(debuggerModel)
+ {
+     this._debuggerModel = debuggerModel;
+diff --git a/Source/WebCore/inspector/front-end/Drawer.js b/Source/WebCore/inspector/front-end/Drawer.js
+index 4eda84a..2e4b8c2 100644
+--- a/Source/WebCore/inspector/front-end/Drawer.js
++++ b/Source/WebCore/inspector/front-end/Drawer.js
+@@ -27,6 +27,10 @@
+  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
++/**
++ * @extends {WebInspector.View}
++ * @constructor
++ */
+ WebInspector.Drawer = function()
+ {
+     WebInspector.View.call(this, document.getElementById("drawer"));
+@@ -50,6 +54,9 @@ WebInspector.Drawer.prototype = {
+         return this._visibleView;
+     },
+ 
++    /**
++     * @param {WebInspector.View} x
++     */
+     set visibleView(x)
+     {
+         if (this._visibleView === x) {
+diff --git a/Source/WebCore/inspector/front-end/ElementsPanel.js b/Source/WebCore/inspector/front-end/ElementsPanel.js
+index 3bc7fc1..79b1d55 100644
+--- a/Source/WebCore/inspector/front-end/ElementsPanel.js
++++ b/Source/WebCore/inspector/front-end/ElementsPanel.js
+@@ -119,6 +119,7 @@ WebInspector.ElementsPanel = function()
+     WebInspector.domAgent.addEventListener(WebInspector.DOMAgent.Events.CharacterDataModified, this._characterDataModified, this);
+     WebInspector.domAgent.addEventListener(WebInspector.DOMAgent.Events.DocumentUpdated, this._documentUpdated, this);
+     WebInspector.domAgent.addEventListener(WebInspector.DOMAgent.Events.ChildNodeCountUpdated, this._childNodeCountUpdated, this);
++    WebInspector.domAgent.addEventListener(WebInspector.DOMAgent.Events.InspectElementRequested, this._inspectElementRequested, this);
+ 
+     this.recentlyModifiedNodes = [];
+ }
+@@ -441,6 +442,11 @@ WebInspector.ElementsPanel.prototype = {
+             treeElement.hasChildren = event.data.hasChildNodes();
+     },
+ 
++    _inspectElementRequested: function(node)
++    {
++        WebInspector.updateFocusedNode(node.id);
++    },
++
+     _updateModifiedNodesSoon: function()
+     {
+         if ("_updateModifiedNodesTimeout" in this)
+@@ -621,7 +627,7 @@ WebInspector.ElementsPanel.prototype = {
+                     break;
+ 
+                 case Node.TEXT_NODE:
+-                    if (isNodeWhitespace.call(current))
++                    if (current.isWhitespace())
+                         crumbTitle = WebInspector.UIString("(whitespace)");
+                     else
+                         crumbTitle = WebInspector.UIString("(text)");
+diff --git a/Source/WebCore/inspector/front-end/ElementsTreeOutline.js b/Source/WebCore/inspector/front-end/ElementsTreeOutline.js
+index 3d90ec5..247b30a 100644
+--- a/Source/WebCore/inspector/front-end/ElementsTreeOutline.js
++++ b/Source/WebCore/inspector/front-end/ElementsTreeOutline.js
+@@ -1466,7 +1466,7 @@ WebInspector.ElementsTreeElement.prototype = {
+                 break;
+ 
+             case Node.TEXT_NODE:
+-                if (isNodeWhitespace.call(node))
++                if (node.isWhitespace())
+                     info.titleDOM.appendChild(document.createTextNode("(whitespace)"));
+                 else {
+                     if (node.parentNode && node.parentNode.nodeName().toLowerCase() === "script") {
+diff --git a/Source/WebCore/inspector/front-end/IFrameView.js b/Source/WebCore/inspector/front-end/IFrameView.js
+index 5970e21..b5cf321 100644
+--- a/Source/WebCore/inspector/front-end/IFrameView.js
++++ b/Source/WebCore/inspector/front-end/IFrameView.js
+@@ -28,6 +28,9 @@
+  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
++/**
++ * @constructor
++ */
+ WebInspector.IFrameView = function(parentElement, stylesheets)
+ {
+     this._iframeElement = document.createElement("iframe");
+diff --git a/Source/WebCore/inspector/front-end/KeyboardShortcut.js b/Source/WebCore/inspector/front-end/KeyboardShortcut.js
+index 2bcf3d1..d11c18a 100644
+--- a/Source/WebCore/inspector/front-end/KeyboardShortcut.js
++++ b/Source/WebCore/inspector/front-end/KeyboardShortcut.js
+@@ -32,11 +32,11 @@ WebInspector.KeyboardShortcut = function()
+ };
+ 
+ /**
+- * Constants for encoding modifier key set as a bit mask.
++ * varants for encoding modifier key set as a bit mask.
+  * @see #_makeKeyFromCodeAndModifiers
+  */
+ WebInspector.KeyboardShortcut.Modifiers = {
+-    None: 0,   // Constant for empty modifiers set.
++    None: 0,   // varant for empty modifiers set.
+     Shift: 1,
+     Ctrl: 2,
+     Alt: 4,
+@@ -149,10 +149,10 @@ WebInspector.KeyboardShortcut._makeKeyFromCodeAndModifiers = function(keyCode, m
+ 
+ WebInspector.KeyboardShortcut._modifiersToString = function(modifiers)
+ {
+-    const cmdKey = "\u2318";
+-    const optKey = "\u2325";
+-    const shiftKey = "\u21e7";
+-    const ctrlKey = "\u2303";
++    var cmdKey = "\u2318";
++    var optKey = "\u2325";
++    var shiftKey = "\u21e7";
++    var ctrlKey = "\u2303";
+ 
+     var isMac = WebInspector.isMac();
+     var res = "";
+diff --git a/Source/WebCore/inspector/front-end/Object.js b/Source/WebCore/inspector/front-end/Object.js
+index 53c20e2..56e6c3d 100644
+--- a/Source/WebCore/inspector/front-end/Object.js
++++ b/Source/WebCore/inspector/front-end/Object.js
+@@ -23,22 +23,25 @@
+  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
++/**
++ * @constructor
++ */
+ WebInspector.Object = function() {
+ }
+ 
+ WebInspector.Object.prototype = {
+     addEventListener: function(eventType, listener, thisObject)
+     {
+-        if (!("_listeners" in this))
++        if (!this._listeners)
+             this._listeners = {};
+-        if (!(eventType in this._listeners))
++        if (!this._listeners[eventType])
+             this._listeners[eventType] = [];
+         this._listeners[eventType].push({ thisObject: thisObject, listener: listener });
+     },
+ 
+     removeEventListener: function(eventType, listener, thisObject)
+     {
+-        if (!("_listeners" in this) || !(eventType in this._listeners))
++        if (!this._listeners || !this._listeners[eventType])
+             return;
+         var listeners = this._listeners[eventType];
+         for (var i = 0; i < listeners.length; ++i) {
+@@ -59,14 +62,14 @@ WebInspector.Object.prototype = {
+ 
+     hasEventListeners: function(eventType)
+     {
+-        if (!("_listeners" in this) || !(eventType in this._listeners))
++        if (!this._listeners || !this._listeners[eventType])
+             return false;
+         return true;
+     },
+ 
+     dispatchEventToListeners: function(eventType, eventData)
+     {
+-        if (!("_listeners" in this) || !(eventType in this._listeners))
++        if (!this._listeners || !this._listeners[eventType])
+             return;
+ 
+         var stoppedPropagation = false;
+diff --git a/Source/WebCore/inspector/front-end/Placard.js b/Source/WebCore/inspector/front-end/Placard.js
+index 9a415c4..7f51e47 100644
+--- a/Source/WebCore/inspector/front-end/Placard.js
++++ b/Source/WebCore/inspector/front-end/Placard.js
+@@ -23,6 +23,9 @@
+  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
++/**
++ * @constructor
++ */
+ WebInspector.Placard = function(title, subtitle)
+ {
+     this.element = document.createElement("div");
+diff --git a/Source/WebCore/inspector/front-end/Popover.js b/Source/WebCore/inspector/front-end/Popover.js
+index f5a73e3..003f9df 100644
+--- a/Source/WebCore/inspector/front-end/Popover.js
++++ b/Source/WebCore/inspector/front-end/Popover.js
+@@ -28,6 +28,9 @@
+  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
++/**
++ * @constructor
++ */
+ WebInspector.Popover = function(contentElement)
+ {
+     this.element = document.createElement("div");
+@@ -80,16 +83,16 @@ WebInspector.Popover.prototype = {
+ 
+     _positionElement: function(anchorElement, preferredWidth, preferredHeight)
+     {
+-        const borderWidth = 25;
+-        const scrollerWidth = 11;
+-        const arrowHeight = 15;
+-        const arrowOffset = 10;
+-        const borderRadius = 10;
++        var borderWidth = 25;
++        var scrollerWidth = 11;
++        var arrowHeight = 15;
++        var arrowOffset = 10;
++        var borderRadius = 10;
+ 
+         // Skinny tooltips are not pretty, their arrow location is not nice.
+         preferredWidth = Math.max(preferredWidth, 50);
+-        const totalWidth = window.innerWidth;
+-        const totalHeight = window.innerHeight;
++        var totalWidth = window.innerWidth;
++        var totalHeight = window.innerHeight;
+ 
+         var anchorBox = anchorElement.offsetRelativeToWindow(window);
+         anchorBox.width = anchorElement.offsetWidth;
+@@ -156,6 +159,9 @@ WebInspector.Popover.prototype = {
+     }
+ }
+ 
++/**
++ * @constructor
++ */
+ WebInspector.PopoverHelper = function(panelElement, getAnchor, showPopup, showOnClick, onHide)
+ {
+     this._panelElement = panelElement;
+@@ -208,7 +214,7 @@ WebInspector.PopoverHelper.prototype = {
+         if (!this._hoverElement)
+             return;
+ 
+-        const toolTipDelay = isMouseDown ? 0 : (this._popup ? this._timeout * 0.6 : this._timeout);
++        var toolTipDelay = isMouseDown ? 0 : (this._popup ? this._timeout * 0.6 : this._timeout);
+         this._hoverTimer = setTimeout(this._mouseHover.bind(this, this._hoverElement), toolTipDelay);
+     },
+ 
+diff --git a/Source/WebCore/inspector/front-end/Script.js b/Source/WebCore/inspector/front-end/Script.js
+index 9d3eb4c..793fc30 100644
+--- a/Source/WebCore/inspector/front-end/Script.js
++++ b/Source/WebCore/inspector/front-end/Script.js
+@@ -23,6 +23,9 @@
+  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
++/**
++ * @constructor
++ */
+ WebInspector.Script = function(scriptId, sourceURL, startLine, startColumn, endLine, endColumn, errorLine, errorMessage, isContentScript)
+ {
+     this.scriptId = scriptId;
+diff --git a/Source/WebCore/inspector/front-end/ScriptsPanel.js b/Source/WebCore/inspector/front-end/ScriptsPanel.js
+index cfac4a0..d66e816 100644
+--- a/Source/WebCore/inspector/front-end/ScriptsPanel.js
++++ b/Source/WebCore/inspector/front-end/ScriptsPanel.js
+@@ -28,6 +28,8 @@ WebInspector.ScriptsPanel = function(presentationModel)
+ {
+     WebInspector.Panel.call(this, "scripts");
+ 
++    WebInspector.settings.installApplicationSetting("pauseOnExceptionStateString", WebInspector.ScriptsPanel.PauseOnExceptionsState.DontPauseOnExceptions);
++
+     this._presentationModel = presentationModel;
+ 
+     this.registerShortcuts();
+diff --git a/Source/WebCore/inspector/front-end/Settings.js b/Source/WebCore/inspector/front-end/Settings.js
+index f1758f3..8e0c681 100644
+--- a/Source/WebCore/inspector/front-end/Settings.js
++++ b/Source/WebCore/inspector/front-end/Settings.js
+@@ -58,6 +58,9 @@ var Preferences = {
+     showNetworkPanelInitiatorColumn: false
+ }
+ 
++/**
++ * @constructor
++ */
+ WebInspector.Settings = function()
+ {
+     this._eventSupport = new WebInspector.Object();
+@@ -72,7 +75,6 @@ WebInspector.Settings = function()
+     this.installApplicationSetting("lastViewedScriptFile", "application");
+     this.installApplicationSetting("monitoringXHREnabled", false);
+     this.installApplicationSetting("preserveConsoleLog", false);
+-    this.installApplicationSetting("pauseOnExceptionStateString", WebInspector.ScriptsPanel.PauseOnExceptionsState.DontPauseOnExceptions);
+     this.installApplicationSetting("resourcesLargeRows", true);
+     this.installApplicationSetting("resourcesSortOptions", {timeOption: "responseTime", sizeOption: "transferSize"});
+     this.installApplicationSetting("resourceViewTab", "preview");
+@@ -102,6 +104,9 @@ WebInspector.Settings.prototype = {
+     }
+ }
+ 
++/**
++ * @constructor
++ */
+ WebInspector.Setting = function(name, defaultValue, eventSupport)
+ {
+     this._name = name;
+diff --git a/Source/WebCore/inspector/front-end/SoftContextMenu.js b/Source/WebCore/inspector/front-end/SoftContextMenu.js
+index 0214982..678e192 100644
+--- a/Source/WebCore/inspector/front-end/SoftContextMenu.js
++++ b/Source/WebCore/inspector/front-end/SoftContextMenu.js
+@@ -25,6 +25,9 @@
+ 
+ if (!InspectorFrontendHost.showContextMenu) {
+ 
++/**
++ * @constructor
++ */
+ WebInspector.SoftContextMenu = function(items)
+ {
+     this._items = items;
+@@ -127,10 +130,10 @@ WebInspector.SoftContextMenu.prototype = {
+ 
+     _menuItemMouseUp: function(event)
+     {
+-        this._triggerAction(event.target);
++        this._triggerAction(event.target, event);
+     },
+ 
+-    _triggerAction: function(menuItemElement)
++    _triggerAction: function(menuItemElement, event)
+     {
+         this._discardMenu(event);
+         if (typeof menuItemElement._actionId !== "undefined") {
+@@ -191,7 +194,7 @@ WebInspector.SoftContextMenu.prototype = {
+             // Fall through
+         case "U+0020": // Space
+             if (this._highlightedMenuItemElement)
+-                this._triggerAction(this._highlightedMenuItemElement);
++                this._triggerAction(this._highlightedMenuItemElement, event);
+             break;
+         }
+         event.stopPropagation();
+@@ -213,7 +216,6 @@ WebInspector.SoftContextMenu.prototype = {
+             delete this._glassPaneElement;
+             // This can re-enter discardMenu due to blur.
+             document.body.removeChild(glassPane);
+-
+             event.stopPropagation();
+             event.preventDefault();
+         }
+diff --git a/Source/WebCore/inspector/front-end/TabbedPane.js b/Source/WebCore/inspector/front-end/TabbedPane.js
+index 57c1954..4fef5d6 100644
+--- a/Source/WebCore/inspector/front-end/TabbedPane.js
++++ b/Source/WebCore/inspector/front-end/TabbedPane.js
+@@ -28,6 +28,10 @@
+  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
++/**
++ * @extends {WebInspector.View}
++ * @constructor
++ */
+ WebInspector.TabbedPane = function(element)
+ {
+     WebInspector.View.call(this, element);
+diff --git a/Source/WebCore/inspector/front-end/TextPrompt.js b/Source/WebCore/inspector/front-end/TextPrompt.js
+index 36a38cc..b001755 100644
+--- a/Source/WebCore/inspector/front-end/TextPrompt.js
++++ b/Source/WebCore/inspector/front-end/TextPrompt.js
+@@ -26,6 +26,9 @@
+  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
++/**
++ * @constructor
++ */
+ WebInspector.TextPrompt = function(element, completions, stopCharacters, omitHistory)
+ {
+     this.element = element;
+diff --git a/Source/WebCore/inspector/front-end/View.js b/Source/WebCore/inspector/front-end/View.js
+index f983d89..88bf2d8 100644
+--- a/Source/WebCore/inspector/front-end/View.js
++++ b/Source/WebCore/inspector/front-end/View.js
+@@ -24,6 +24,9 @@
+  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
++/**
++ * @constructor
++ */
+ WebInspector.View = function(element)
+ {
+     this.element = element || document.createElement("div");
+diff --git a/Source/WebCore/inspector/front-end/compile_frontend.sh b/Source/WebCore/inspector/front-end/compile_frontend.sh
+new file mode 100755
+index 0000000..80ee44c
+--- /dev/null
++++ b/Source/WebCore/inspector/front-end/compile_frontend.sh
+@@ -0,0 +1,5 @@
++java -jar ~/closure/compiler-latest/compiler.jar --js utilities.js --js BinarySearch.js --js Object.js --js Settings.js \
++  --js DOMAgent.js --js Checkbox.js --js ContextMenu.js --js SoftContextMenu.js --js KeyboardShortcut.js \
++  --js TextPrompt.js --js Popover.js --js Placard.js --js View.js --js TabbedPane.js --js IFrameView.js \
++  --js Drawer.js --js UISourceCode.js --js Script.js --js DebuggerModel.js \
++  --compilation_level ADVANCED_OPTIMIZATIONS --warning_level VERBOSE --externs externs.js --externs domain-externs.js --language_in ECMASCRIPT5
+diff --git a/Source/WebCore/inspector/front-end/externs.js b/Source/WebCore/inspector/front-end/externs.js
+new file mode 100644
+index 0000000..f6dd02a
+--- /dev/null
++++ b/Source/WebCore/inspector/front-end/externs.js
+@@ -0,0 +1,19 @@
++// for (var i = 0; i < dispatches.length; ++i) { var d = JSON.parse(dispatches[i]); register(d.method, d.params ? Object.keys(d.params).length : 0); }
++// register = function(name, params) { var names = name.split("."); var paramsText = []; for (var i = 0; i < params; ++i) { paramsText.push("param" + i); }; console.log(names[0] + "Agent." + names[1] + " = function(" + paramsText.join(", ") + ") {}"); }
++// InspectorBackendStub.prototype._registerDelegate = function(a) { dispatches.push(a); }
++
++var WebInspector = {}
++
++var InspectorBackend = {}
++InspectorBackend.registerDomainDispatcher = function(domain, dispatcher) {}
++
++var JSON = {}
++JSON.stringify = function(obj) {}
++JSON.parse = function(str) {}
++
++var console = {}
++console.error = function(param) {}
++
++var InspectorFrontendHost = {}
++InspectorFrontendHost.showContextMenu = function(event, items) {}
++
+diff --git a/Source/WebCore/inspector/front-end/treeoutline.js b/Source/WebCore/inspector/front-end/treeoutline.js
+index b881865..7d66c6d 100644
+--- a/Source/WebCore/inspector/front-end/treeoutline.js
++++ b/Source/WebCore/inspector/front-end/treeoutline.js
+@@ -26,6 +26,9 @@
+  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
++/**
++ * @constructor
++ */
+ function TreeOutline(listNode)
+ {
+     this.children = [];
+@@ -448,6 +451,9 @@ TreeOutline.prototype.removeChildAtIndex = TreeOutline._removeChildAtIndex;
+ TreeOutline.prototype.removeChildren = TreeOutline._removeChildren;
+ TreeOutline.prototype.removeChildrenRecursive = TreeOutline._removeChildrenRecursive;
+ 
++/**
++ * @constructor
++ */
+ function TreeElement(title, representedObject, hasChildren)
+ {
+     this._title = title;
+diff --git a/Source/WebCore/inspector/front-end/utilities.js b/Source/WebCore/inspector/front-end/utilities.js
+index b1f3315..6966f11 100644
+--- a/Source/WebCore/inspector/front-end/utilities.js
++++ b/Source/WebCore/inspector/front-end/utilities.js
+@@ -468,113 +468,36 @@ String.prototype.removeURLFragment = function()
+     return this.substring(0, fragmentIndex);
+ }
+ 
+-window.isNodeWhitespace = function()
++Node.prototype.isWhitespace = function()
+ {
+-    if (!this || this.nodeType !== Node.TEXT_NODE)
++    if (this.nodeType !== Node.TEXT_NODE)
+         return false;
+     if (!this.nodeValue.length)
+         return true;
+     return this.nodeValue.match(/^[\s\xA0]+$/);
+ }
+ 
+-function nodeDisplayName()
+-{
+-    if (!this)
+-        return "";
+-
+-    switch (this.nodeType) {
+-        case Node.DOCUMENT_NODE:
+-            return "Document";
+-
+-        case Node.ELEMENT_NODE:
+-            var name = "<" + this.nodeName.toLowerCase();
+-
+-            if (this.hasAttributes()) {
+-                var value = this.getAttribute("id");
+-                if (value)
+-                    name += " id=\"" + value + "\"";
+-                value = this.getAttribute("class");
+-                if (value)
+-                    name += " class=\"" + value + "\"";
+-                if (this.nodeName.toLowerCase() === "a") {
+-                    value = this.getAttribute("name");
+-                    if (value)
+-                        name += " name=\"" + value + "\"";
+-                    value = this.getAttribute("href");
+-                    if (value)
+-                        name += " href=\"" + value + "\"";
+-                } else if (this.nodeName.toLowerCase() === "img") {
+-                    value = this.getAttribute("src");
+-                    if (value)
+-                        name += " src=\"" + value + "\"";
+-                } else if (this.nodeName.toLowerCase() === "iframe") {
+-                    value = this.getAttribute("src");
+-                    if (value)
+-                        name += " src=\"" + value + "\"";
+-                } else if (this.nodeName.toLowerCase() === "input") {
+-                    value = this.getAttribute("name");
+-                    if (value)
+-                        name += " name=\"" + value + "\"";
+-                    value = this.getAttribute("type");
+-                    if (value)
+-                        name += " type=\"" + value + "\"";
+-                } else if (this.nodeName.toLowerCase() === "form") {
+-                    value = this.getAttribute("action");
+-                    if (value)
+-                        name += " action=\"" + value + "\"";
+-                }
+-            }
+-
+-            return name + ">";
+-
+-        case Node.TEXT_NODE:
+-            if (isNodeWhitespace.call(this))
+-                return "(whitespace)";
+-            return "\"" + this.nodeValue + "\"";
+-
+-        case Node.COMMENT_NODE:
+-            return "<!--" + this.nodeValue + "-->";
+-            
+-        case Node.DOCUMENT_TYPE_NODE:
+-            var docType = "<!DOCTYPE " + this.nodeName;
+-            if (this.publicId) {
+-                docType += " PUBLIC \"" + this.publicId + "\"";
+-                if (this.systemId)
+-                    docType += " \"" + this.systemId + "\"";
+-            } else if (this.systemId)
+-                docType += " SYSTEM \"" + this.systemId + "\"";
+-            if (this.internalSubset)
+-                docType += " [" + this.internalSubset + "]";
+-            return docType + ">";
+-    }
+-
+-    return this.nodeName.toLowerCase().collapseWhitespace();
+-}
+-
+-window.isAncestorNode = function(ancestor, node)
++Node.prototype.isAncestor = function(node)
+ {
+-    if (!node || !ancestor)
++    if (!node)
+         return false;
+ 
+     var currentNode = node.parentNode;
+     while (currentNode) {
+-        if (ancestor === currentNode)
++        if (this === currentNode)
+             return true;
+         currentNode = currentNode.parentNode;
+     }
+     return false;
+ }
+ 
+-window.isDescendantNode = function(descendant)
++Node.prototype.isDescendant = function(descendant)
+ {
+-    return isAncestorNode(descendant, this);
++    return descendant !== null && descendant.isAncestor(this);
+ }
+ 
+-function traverseNextNode(stayWithin)
++Node.prototype.traverseNextNode = function(stayWithin)
+ {
+-    if (!this)
+-        return;
+-
+     var node = this.firstChild;
+     if (node)
+         return node;
+@@ -595,10 +518,8 @@ function traverseNextNode(stayWithin)
+     return node.nextSibling;
+ }
+ 
+-function traversePreviousNode(stayWithin)
++Node.prototype.traversePreviousNode = function(stayWithin)
+ {
+-    if (!this)
+-        return;
+     if (stayWithin && this === stayWithin)
+         return null;
+     var node = this.previousSibling;
+@@ -614,16 +535,6 @@ window.parentNode = function(node)
+     return node.parentNode;
+ }
+ 
+-Node.prototype.isWhitespace = isNodeWhitespace;
+-Node.prototype.displayName = nodeDisplayName;
+-Node.prototype.isAncestor = function(node)
+-{
+-    return isAncestorNode(this, node);
+-};
+-Node.prototype.isDescendant = isDescendantNode;
+-Node.prototype.traverseNextNode = traverseNextNode;
+-Node.prototype.traversePreviousNode = traversePreviousNode;
+-
+ Number.millisToString = function(ms, higherResolution)
+ {
+     return Number.secondsToString(ms / 1000, higherResolution);
+@@ -1102,7 +1013,7 @@ function revertDomChanges(domChanges)
+ function createSearchRegex(query, extraFlags)
+ {
+     // This should be kept the same as the one in InspectorPageAgent.cpp.
+-    regexSpecialCharacters = "[](){}+-*.,?\\^$|";
++    var regexSpecialCharacters = "[](){}+-*.,?\\^$|";
+     var regex = "";
+     for (var i = 0; i < query.length; ++i) {
+         var char = query.charAt(i);

@@ -1,0 +1,81 @@
+<!--
+Copyright (C) 2006, 2007, 2008 Apple Inc.  All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+1.  Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+2.  Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+    its contributors may be used to endorse or promote products derived
+    from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY APPLE AND ITS CONTRIBUTORS "AS IS" AND ANY
+EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL APPLE OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <link rel="stylesheet" type="text/css" href="inspectorCommon.css">
+    <link rel="stylesheet" type="text/css" href="inspectorSyntaxHighlight.css">
+    <link rel="stylesheet" type="text/css" href="textViewer.css">
+<style>
+.body, .text-editor {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+</style>
+
+    <script>WebInspector = { isMac: function() { return true; } }</script>
+    <script type="text/javascript" src="utilities.js"></script>
+    <script type="text/javascript" src="BinarySearch.js"></script>
+    <script type="text/javascript" src="Object.js"></script>
+    <script type="text/javascript" src="ContextMenu.js"></script>
+    <script type="text/javascript" src="KeyboardShortcut.js"></script>
+    <script type="text/javascript" src="TextEditorModel.js"></script>
+    <script type="text/javascript" src="TextEditorHighlighter.js"></script>
+    <script type="text/javascript" src="SourceTokenizer.js"></script>
+    <script type="text/javascript" src="SourceCSSTokenizer.js"></script>
+    <script type="text/javascript" src="SourceHTMLTokenizer.js"></script>
+    <script type="text/javascript" src="SourceJavaScriptTokenizer.js"></script>
+    <script type="text/javascript" src="View.js"></script>
+    <script type="text/javascript" src="TextViewer.js"></script>
+<script>
+
+function onload()
+{
+    var textModel = new WebInspector.TextEditorModel();
+    var text = [];
+    for (var i = 0; i < 1000; ++i) text.push(WebInspector.TextViewer.toString());
+    textModel.setText(null, text.join("\n"));
+
+    var delegate = { beforeTextChanged: function() {}, cancelEditing: function() {} };
+    textViewer = new WebInspector.TextViewer(textModel, "mac", "http://foo.bar/tt.css", delegate);
+    document.body.appendChild(textViewer.element);
+
+    textViewer.mimeType = "text/javascript";
+    textViewer.readOnly = false;
+    textViewer._updatePanelOffsets();
+    textViewer._mainPanel._scheduleRepaintAll();
+}
+</script>
+</head>
+<body onload="onload()">
+</body>
+</html>
